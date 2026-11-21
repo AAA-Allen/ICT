@@ -1,0 +1,170 @@
+"""Graph definition and read-only node context for the v0.1 runtime."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from types import MappingProxyType
+from typing import Any, Callable, Mapping
+
+from .results import NodeResult
+from .runtime import _json_snapshot, _readonly_value, _thaw_value, _validate_run_id
+
+
+NodeCallable = Callable[["NodeContext"], NodeResult]
+
+
+@dataclass(frozen=True)
+class NodeContext:
+    """Read-only per-node execution context."""
+    run_id: str
+    node_id: str
+    execution_id: str
+    state_version: int
+    _input: Mapping[str, Any]
+    _state: Mapping[str, Any]
+    _cancel_requested: Callable[[], bool] | None = None
+
+    def __post_init__(self) -> None:
+        _validate_run_id(self.run_id)
+        for value, name in ((self.node_id, "node_id"), (self.execution_id, "execution_id")):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be a nonempty string")
+        if not isinstance(self.state_version, int) or isinstance(self.state_version, bool) \
+                or self.state_version < 0:
+            raise ValueError("state_version must be a nonnegative integer")
+        if self._cancel_requested is not None and not callable(self._cancel_requested):
+            raise TypeError("cancel_requested must be callable when provided")
+        object.__setattr__(self, "_input", _readonly_value(self._input))
+        object.__setattr__(self, "_state", _readonly_value(self._state))
+
+    @property
+    def input(self) -> Mapping[str, Any]:
+        return _readonly_snapshot(self._input)
+
+    @property
+    def state(self) -> Mapping[str, Any]:
+        return _readonly_snapshot(self._state)
+
+    @property
+    def cancel_requested(self) -> bool:
+        """Whether the runtime has requested cooperative cancellation."""
+        return False if self._cancel_requested is None else self._cancel_requested()
+
+
+@dataclass(frozen=True)
+class Node:
+    node_id: str
+    execute: NodeCallable
+
+    def __post_init__(self) -> None:
+        _validate_identifier(self.node_id, "node_id")
+        if not callable(self.execute):
+            raise TypeError("node execute must be callable")
+
+
+@dataclass(frozen=True)
+class Edge:
+    source: str
+    target: str
+    when: str | None = None
+
+    def __post_init__(self) -> None:
+        _validate_identifier(self.source, "source")
+        _validate_identifier(self.target, "target")
+        if self.when is not None:
+            _validate_identifier(self.when, "when")
+
+
+@dataclass(frozen=True)
+class CompiledGraph:
+    """Immutable graph snapshot produced by :meth:`Graph.compile`."""
+    nodes: Mapping[str, Node]
+    edges: tuple[Edge, ...]
+    entry: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.nodes, Mapping):
+            raise TypeError("nodes must be a mapping")
+        if not isinstance(self.edges, tuple):
+            raise TypeError("edges must be a tuple")
+        _validate_identifier(self.entry, "entry")
+        object.__setattr__(self, "nodes", MappingProxyType(dict(self.nodes)))
+        object.__setattr__(self, "edges", tuple(self.edges))
+
+    def outgoing(self, node_id: str) -> tuple[Edge, ...]:
+        return tuple(edge for edge in self.edges if edge.source == node_id)
+
+
+class Graph:
+    """Mutable graph builder; call ``compile`` before execution."""
+    def __init__(self) -> None:
+        self._nodes: dict[str, Node] = {}
+        self._edges: list[Edge] = []
+        self._entry: str | None = None
+
+    def add_node(self, node_id: str, execute: NodeCallable) -> "Graph":
+        _validate_identifier(node_id, "node_id")
+        if not callable(execute):
+            raise TypeError("node execute must be callable")
+        if node_id in self._nodes:
+            raise ValueError(f"node already registered: {node_id}")
+        self._nodes[node_id] = Node(node_id, execute)
+        return self
+
+    def set_entry(self, node_id: str) -> "Graph":
+        _validate_identifier(node_id, "entry")
+        self._entry = node_id
+        return self
+
+    def add_edge(
+        self, source: str, target: str, *, when: str | None = None
+    ) -> "Graph":
+        _validate_identifier(source, "source")
+        _validate_identifier(target, "target")
+        if when is not None:
+            _validate_identifier(when, "when")
+        edge = Edge(source, target, when)
+        if edge in self._edges:
+            raise ValueError("edge already registered")
+        self._edges.append(edge)
+        return self
+
+    def compile(self) -> CompiledGraph:
+        if not self._nodes:
+            raise ValueError("graph needs at least one node")
+        if self._entry is None or self._entry not in self._nodes:
+            raise ValueError("graph needs a valid entry node")
+        for edge in self._edges:
+            if edge.source not in self._nodes or edge.target not in self._nodes:
+                raise ValueError("edge references an unknown node")
+        for node_id in self._nodes:
+            defaults = [edge for edge in self._edges
+                        if edge.source == node_id and edge.when is None]
+            if len(defaults) > 1:
+                raise ValueError(f"multiple default edges from node: {node_id}")
+
+        reachable = {self._entry}
+        changed = True
+        while changed:
+            changed = False
+            for edge in self._edges:
+                if edge.source in reachable and edge.target not in reachable:
+                    reachable.add(edge.target)
+                    changed = True
+        if reachable != set(self._nodes):
+            missing = sorted(set(self._nodes) - reachable)
+            raise ValueError(f"unreachable nodes: {', '.join(missing)}")
+
+        return CompiledGraph(
+            MappingProxyType(dict(self._nodes)), tuple(self._edges), self._entry
+        )
+
+
+def _validate_identifier(value: str, label: str) -> None:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{label} must be a nonempty string")
+
+
+def _readonly_snapshot(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    snapshot = _json_snapshot(_thaw_value(value))
+    return MappingProxyType(snapshot)

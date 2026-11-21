@@ -1,0 +1,12 @@
+artifacts/
+/.codex-remote-attachments/
+
+# Local learning notes, handoff material and source packaging tools
+/对接/
+/fitness-agent-web/docs/
+/fitness-agent-web/README.md
+/fitness-agent-web/AGENTS.md
+/fitness-query-service/AGENTS.md
+/fitness-agent-web/.vscode/
+/package-source.cmd
+/scripts/package-source.ps1

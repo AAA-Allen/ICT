@@ -1,0 +1,79 @@
+.query-source-panel {
+  margin: 0 0 28px;
+  padding: 22px 26px;
+  border: 1px solid #d8e3ce;
+  border-radius: 12px;
+  background: #f9fcf5;
+}
+.query-source-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.query-source-heading h2 {
+  font-size: 17px;
+}
+.query-source-badge {
+  padding: 6px 9px;
+  border: 1px solid #cbdcbc;
+  border-radius: 5px;
+  font-size: 11px;
+  color: #567240;
+}
+.query-source-panel > p {
+  font-size: 12px;
+  line-height: 1.95;
+  color: #718363;
+  margin-top: 12px;
+}
+.query-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 11px;
+  margin: 16px 0;
+}
+.query-source-actions button {
+  min-height: 44px;
+  padding: 10px 15px;
+  border: 1px solid #cbd9ba;
+  border-radius: 7px;
+  background: #fff;
+  color: #55733e;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.query-source-actions button[aria-pressed='true'] {
+  background: #52733f;
+  border-color: #52733f;
+  color: #fff;
+}
+.query-source-actions button:disabled {
+  color: #939c89;
+  background: #edf0e7;
+  border-color: #d8e1ce;
+}
+.query-source-panel .query-source-status {
+  color: #536f41;
+}
+.query-source-panel .query-source-error {
+  padding: 13px;
+  border-radius: 7px;
+  background: #f8efdf;
+  color: #8c7448;
+  overflow-wrap: anywhere;
+}
+.query-source-panel .query-source-hint {
+  color: #8a977e;
+  font-size: 10px;
+}
+@media (max-width: 600px) {
+  .query-source-panel {
+    padding: 20px;
+  }
+  .query-source-actions {
+    flex-direction: column;
+  }
+}

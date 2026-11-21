@@ -1,0 +1,219 @@
+.demonstration-browser {
+  margin-top: 28px;
+  padding-top: 27px;
+  border-top: 1px solid #d4dfc9;
+}
+.demonstration-source-note,
+.demonstration-match-copy > p,
+.demonstration-media-description,
+.demonstration-ready-note {
+  font-size: 12px;
+  line-height: 1.95;
+  color: #6b805c;
+}
+.demonstration-source-note {
+  margin-top: 12px;
+}
+.demonstration-issue-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.demonstration-issue-choices button,
+.demonstration-retry-query,
+.demonstration-retry-playback {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #cad9b8;
+  border-radius: 7px;
+  background: #f4f7ee;
+  color: #55713f;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.demonstration-issue-choices button[aria-pressed='true'] {
+  background: #52743f;
+  border-color: #52743f;
+  color: #fff;
+}
+.demonstration-controls {
+  display: grid;
+  grid-template-columns: auto minmax(0, 260px) 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 19px;
+}
+.demonstration-controls label {
+  font-size: 12px;
+  color: #4e6840;
+}
+.demonstration-controls select {
+  min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  padding: 10px 30px 10px 12px;
+  border: 1px solid #cedbbc;
+  border-radius: 6px;
+  background: #fcfdf9;
+  color: #4f693d;
+  font: inherit;
+  font-size: 12px;
+}
+.demonstration-controls > span {
+  font-size: 10px;
+  color: #7e8e71;
+  line-height: 1.9;
+}
+.demonstration-match {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1fr);
+  gap: 25px;
+  padding: 24px;
+  border: 1px solid #d5e1c6;
+  border-radius: 10px;
+  background: #fcfdf9;
+}
+.demonstration-match-copy,
+.demonstration-match-media {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.demonstration-match-copy .demonstration-match-label {
+  font-size: 10px;
+  margin-bottom: 8px;
+  color: #8a987b;
+}
+.demonstration-match-copy > p {
+  margin-top: 12px;
+}
+.demonstration-browser h5 {
+  margin: 19px 0 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4f6a3d;
+  line-height: 1.9;
+}
+.demonstration-reasons {
+  margin: 0;
+  padding-left: 19px;
+  font-size: 11px;
+  line-height: 2.1;
+  color: #71865f;
+}
+.demonstration-match-copy .demonstration-material-pending {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: 5px;
+  background: #f3eedf;
+  color: #887347;
+  font-size: 11px;
+}
+.demonstration-sample-label {
+  margin-bottom: 10px;
+  color: #6c805a;
+  font-size: 11px;
+}
+.demonstration-video-frame {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #d3dfc4;
+  border-radius: 8px;
+  background: #203a2f;
+}
+.demonstration-video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+}
+.demonstration-video:focus-visible {
+  outline: 3px solid #9b6a29;
+  outline-offset: -4px;
+}
+.demonstration-loading {
+  padding: 13px;
+  color: #e4efda;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.demonstration-player-error {
+  min-height: 210px;
+  padding: 24px;
+  color: #e4efda;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.demonstration-player-error p {
+  margin: 10px 0 17px;
+}
+.demonstration-media-description,
+.demonstration-ready-note {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.demonstration-state,
+.demonstration-missing-material {
+  padding: 23px;
+  background: #f0f5e8;
+  border: 1px dashed #cbd9b9;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.95;
+  color: #718461;
+}
+.demonstration-state {
+  margin-top: 18px;
+}
+.demonstration-state p {
+  margin: 9px 0;
+}
+.demonstration-state button {
+  margin-top: 9px;
+}
+.demonstration-uncertain {
+  background: #f6f2e7;
+  border-color: #dacfaf;
+  color: #8b7648;
+}
+.demonstration-missing-material {
+  height: 100%;
+  min-height: 210px;
+}
+.demonstration-missing-material > span {
+  display: block;
+  font-size: 30px;
+  color: #829b6b;
+}
+.demonstration-missing-material h5 {
+  margin-top: 6px;
+}
+
+@media (max-width: 900px) {
+  .demonstration-match {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 21px;
+  }
+  .demonstration-controls {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .demonstration-controls > span {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 600px) {
+  .demonstration-match {
+    padding: 16px;
+  }
+  .demonstration-controls {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+  .demonstration-issue-choices {
+    flex-direction: column;
+  }
+  .demonstration-issue-choices button {
+    text-align: left;
+  }
+}

@@ -1,0 +1,309 @@
+.result-preset-field {
+  margin-top: 16px;
+}
+.result-preset-field label {
+  display: block;
+  color: #4e6840;
+  font-size: 12px;
+  margin-bottom: 9px;
+}
+.analysis-results {
+  margin-top: 27px;
+  padding-top: 26px;
+  border-top: 1px solid #d4dfc9;
+}
+.results-heading,
+.issue-card-heading,
+.timeline-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.results-heading h3 {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+.results-source-badge {
+  font-size: 11px;
+  padding: 6px 9px;
+  border: 1px solid #c4d5b1;
+  border-radius: 5px;
+  color: #50713b;
+  white-space: nowrap;
+}
+.results-source-note {
+  margin-top: 13px;
+  padding: 12px 14px;
+  color: #657d54;
+  background: #ebf1e2;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.result-input-info {
+  margin: 14px 0;
+  color: #718465;
+  font-size: 11px;
+  line-height: 1.9;
+  overflow-wrap: anywhere;
+}
+.results-overview {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 24px;
+}
+.results-overview > div {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid #dce5d1;
+  border-radius: 8px;
+  background: #fcfdf9;
+}
+.results-overview dt {
+  margin-bottom: 7px;
+  color: #7b8b6e;
+  font-size: 11px;
+}
+.results-overview dd {
+  margin: 0;
+  color: #3d5c2d;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.7;
+}
+.issue-timeline {
+  padding: 19px;
+  margin-bottom: 22px;
+  border: 1px solid #dae4ce;
+  border-radius: 10px;
+  background: #fcfdf9;
+}
+.analysis-results h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.8;
+}
+.timeline-heading > span {
+  color: #7b8c6e;
+  font-size: 10px;
+  line-height: 1.8;
+}
+.timeline-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 15px 0 11px;
+  color: #7b8a70;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.timeline-item + .timeline-item {
+  margin-top: 15px;
+}
+.timeline-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin-bottom: 7px;
+  font-size: 11px;
+  line-height: 1.8;
+  color: #5d754e;
+}
+.issue-timeline-button {
+  display: block;
+  position: relative;
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d8e2cc;
+  border-radius: 7px;
+  padding: 0;
+  overflow: hidden;
+  background: repeating-linear-gradient(
+    to right,
+    #f0f5e8 0,
+    #f0f5e8 calc(25% - 1px),
+    #dae4ce calc(25% - 1px),
+    #dae4ce 25%
+  );
+}
+.timeline-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  min-width: 2px;
+  border-radius: 4px;
+  background: #b8cd9f;
+  color: #3e5c2f;
+  font-size: 11px;
+  pointer-events: none;
+}
+.issue-timeline-button.is-selected {
+  border-color: #66864a;
+  box-shadow: inset 0 0 0 1px #66864a;
+}
+.issue-timeline-button.is-selected .timeline-marker {
+  background: #5b7c43;
+  color: white;
+}
+.analysis-issue-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.analysis-issue-card {
+  min-width: 0;
+  padding: 21px;
+  border: 1px solid #d9e3ce;
+  border-radius: 10px;
+  background: #fcfdf9;
+}
+.analysis-issue-card.is-selected {
+  border-color: #6b8c4f;
+  box-shadow: inset 0 0 0 1px #6b8c4f;
+  background: #edf4e2;
+}
+.issue-example-tag {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 9px;
+  font-weight: 400;
+  color: #7c8d6c;
+}
+.issue-severity {
+  font-size: 10px;
+  color: #7b8559;
+  background: #eff2e4;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+.issue-confidence-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18px;
+  color: #7a8b6c;
+  font-size: 11px;
+}
+.issue-confidence-row strong {
+  color: #52713d;
+  font-size: 14px;
+}
+.issue-confidence-meter {
+  display: block;
+  width: 100%;
+  height: 9px;
+  margin-top: 7px;
+}
+.issue-confidence-meter::-webkit-meter-bar {
+  border: 0;
+  background: #e4ebd9;
+  border-radius: 4px;
+}
+.issue-confidence-meter::-webkit-meter-optimum-value {
+  background: #90ac6e;
+}
+.is-uncertain .issue-confidence-meter::-webkit-meter-optimum-value {
+  background: #c4aa68;
+}
+.issue-feedback,
+.issue-uncertain-note {
+  font-size: 12px;
+  line-height: 1.95;
+  color: #6e825f;
+  margin: 15px 0 18px;
+}
+.issue-uncertain-note {
+  color: #8b7645;
+}
+.issue-location-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+  border-top: 1px solid #e0e8d6;
+  padding-top: 13px;
+}
+.issue-time {
+  color: #7b8b70;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+.locate-issue-button {
+  min-height: 44px;
+  padding: 9px 12px;
+  color: #3b5b2d;
+  background: #edf3e4;
+  border: 1px solid #cad9b8;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.locate-issue-button:disabled {
+  color: #8b947e;
+  background: #f0f3ea;
+  border-color: #dce3d2;
+}
+.results-empty,
+.results-time-unavailable {
+  padding: 23px;
+  border: 1px dashed #cbd9b9;
+  border-radius: 9px;
+  background: #f1f6e9;
+  font-size: 12px;
+  color: #718461;
+  line-height: 1.95;
+}
+.results-empty p {
+  margin-top: 9px;
+}
+.results-time-unavailable {
+  padding: 13px;
+  margin-bottom: 18px;
+}
+.video-location-message {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid #d1dfc0;
+  border-radius: 6px;
+  background: #eff5e6;
+  color: #587244;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.local-video-player:focus-visible {
+  outline: 3px solid #9b6a29;
+  outline-offset: 4px;
+}
+
+@media (max-width: 900px) {
+  .analysis-issue-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .results-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .results-overview > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .results-overview dt {
+    margin-bottom: 0;
+  }
+  .issue-timeline,
+  .analysis-issue-card {
+    padding: 15px;
+  }
+}

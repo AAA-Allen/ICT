@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-core"
+version = "0.4.0"
+description = "Domain-neutral agent workflow runtime: ordered steps, fail-closed decision boundaries, tool capability gating, structured run persistence, and an optional HTTP workbench."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "build>=1", "wheel>=0.40", "setuptools>=61"]
+
+[project.scripts]
+agent-core-server = "agent_core.server:main"
+
+[tool.setuptools]
+packages = ["agent_core", "agent_lite"]
+
+[tool.setuptools.data-files]
+"share/agent-core/frontend" = ["frontend/index.html", "frontend/app.js", "frontend/styles.css"]
+"share/agent-core/frontend/vendor" = ["frontend/vendor/lucide-0.468.0.min.js", "frontend/vendor/lucide-LICENSE.txt"]
+"share/agent-core/examples" = ["examples/support_agent.json", "examples/assistant_agent.json", "examples/recovery_agent.json"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# 屏蔽环境里无关且可能损坏的第三方 pytest 插件（如 langsmith 的 langsmith_plugin），
+# 本仓库测试只依赖标准 unittest/pytest 本身；禁用不存在的插件是安全的。
+addopts = "-p no:langsmith_plugin"

@@ -1,0 +1,498 @@
+{
+  "contractVersion": "personal-v1",
+  "muscles": [
+    {
+      "id": "chest",
+      "name": "胸大肌",
+      "englishName": "PECTORALS",
+      "icon": "chest",
+      "caption": "胸前侧 · 上肢推类",
+      "description": "位于胸前侧，参与手臂向身体前方和中线靠拢的动作。",
+      "primaryMuscles": [
+        "胸大肌"
+      ]
+    },
+    {
+      "id": "deltoids",
+      "name": "三角肌",
+      "englishName": "DELTOIDS",
+      "icon": "shoulders",
+      "caption": "肩部 · 前中后三束",
+      "description": "覆盖肩部外侧，可分为前束、中束和后束，参与不同方向的抬臂动作。",
+      "primaryMuscles": [
+        "三角肌前束",
+        "三角肌中束",
+        "三角肌后束"
+      ]
+    },
+    {
+      "id": "trapezius",
+      "name": "斜方肌",
+      "englishName": "TRAPEZIUS",
+      "icon": "back",
+      "caption": "颈肩至上背 · 肩胛控制",
+      "description": "位于颈后和上背部，参与肩胛骨的移动与稳定；请切到背面查看。",
+      "primaryMuscles": [
+        "斜方肌上束",
+        "斜方肌中束",
+        "斜方肌下束"
+      ]
+    },
+    {
+      "id": "lats",
+      "name": "背阔肌",
+      "englishName": "LATS",
+      "icon": "back",
+      "caption": "背部两侧 · 上肢牵拉",
+      "description": "位于背部两侧，参与手臂向下、向后牵拉的动作；请切到背面查看。",
+      "primaryMuscles": [
+        "背阔肌"
+      ]
+    },
+    {
+      "id": "biceps",
+      "name": "肱二头肌",
+      "englishName": "BICEPS",
+      "icon": "arms",
+      "caption": "上臂前侧 · 屈肘",
+      "description": "位于上臂前侧，参与屈肘及前臂旋后，弯举是常见的相关动作。",
+      "primaryMuscles": [
+        "肱二头肌长头",
+        "肱二头肌短头"
+      ]
+    },
+    {
+      "id": "triceps",
+      "name": "肱三头肌",
+      "englishName": "TRICEPS",
+      "icon": "arms",
+      "caption": "上臂后侧 · 伸肘",
+      "description": "位于上臂后侧，主要参与伸肘，也参与俯卧撑等推类动作。",
+      "primaryMuscles": [
+        "肱三头肌长头",
+        "肱三头肌外侧头",
+        "肱三头肌内侧头"
+      ]
+    },
+    {
+      "id": "abs",
+      "name": "腹肌",
+      "englishName": "ABS",
+      "icon": "abs",
+      "caption": "腹部 · 躯干控制",
+      "description": "腹部肌群共同参与躯干控制。图中以腹部表面区域作为选择入口。",
+      "primaryMuscles": [
+        "腹直肌",
+        "腹外斜肌",
+        "腹内斜肌",
+        "腹横肌"
+      ]
+    },
+    {
+      "id": "glutes",
+      "name": "臀肌",
+      "englishName": "GLUTES",
+      "icon": "legs",
+      "caption": "臀部 · 髋部活动",
+      "description": "位于骨盆后侧及外侧，参与髋部伸展、外展和骨盆稳定。",
+      "primaryMuscles": [
+        "臀大肌",
+        "臀中肌",
+        "臀小肌"
+      ]
+    },
+    {
+      "id": "quads",
+      "name": "股四头肌",
+      "englishName": "QUADRICEPS",
+      "icon": "legs",
+      "caption": "大腿前侧 · 伸膝",
+      "description": "位于大腿前侧，主要参与伸膝，深蹲等动作也会涉及这一肌群。",
+      "primaryMuscles": [
+        "股直肌",
+        "股外侧肌",
+        "股内侧肌",
+        "股中间肌"
+      ]
+    },
+    {
+      "id": "hamstrings",
+      "name": "腘绳肌",
+      "englishName": "HAMSTRINGS",
+      "icon": "legs",
+      "caption": "大腿后侧 · 屈膝与伸髋",
+      "description": "位于大腿后侧，参与屈膝与伸髋；在人体图背面选择。",
+      "primaryMuscles": [
+        "股二头肌",
+        "半腱肌",
+        "半膜肌"
+      ]
+    },
+    {
+      "id": "calves",
+      "name": "小腿肌群",
+      "englishName": "CALVES",
+      "icon": "legs",
+      "caption": "小腿后侧 · 提踵",
+      "description": "这里主要指小腿后侧的腓肠肌和比目鱼肌，参与抬起脚跟的动作。",
+      "primaryMuscles": [
+        "腓肠肌",
+        "比目鱼肌"
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "id": "wall_push_up",
+      "name": "墙壁俯卧撑",
+      "targetMuscles": [
+        "chest",
+        "triceps"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "以墙面作为上肢支撑的俯卧撑变式，采用站立姿势完成。"
+    },
+    {
+      "id": "kneeling_push_up",
+      "name": "跪姿俯卧撑",
+      "targetMuscles": [
+        "chest",
+        "triceps"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "以双膝和双手作为支撑的俯卧撑变式，属于上肢推类动作。"
+    },
+    {
+      "id": "push_up",
+      "name": "标准俯卧撑",
+      "targetMuscles": [
+        "chest",
+        "deltoids",
+        "triceps"
+      ],
+      "difficulty": "advanced",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "endurance",
+        "general_fitness"
+      ],
+      "description": "以双手和脚部作为支撑的自重上肢推类动作，同时涉及躯干控制。"
+    },
+    {
+      "id": "dumbbell_floor_press",
+      "name": "哑铃地板卧推",
+      "targetMuscles": [
+        "chest",
+        "triceps"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength"
+      ],
+      "description": "在地面仰卧姿势下使用哑铃完成的上肢推类动作。"
+    },
+    {
+      "id": "band_row",
+      "name": "弹力带划船",
+      "targetMuscles": [
+        "lats",
+        "trapezius",
+        "biceps"
+      ],
+      "difficulty": "beginner",
+      "equipment": "resistance_band",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "以弹力带提供阻力的划船类动作，涉及背部和手臂。"
+    },
+    {
+      "id": "dumbbell_row",
+      "name": "哑铃划船",
+      "targetMuscles": [
+        "lats",
+        "trapezius",
+        "biceps"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength"
+      ],
+      "description": "以哑铃提供阻力的上肢拉类动作，涉及背部和手臂。"
+    },
+    {
+      "id": "reverse_snow_angel",
+      "name": "俯卧雪天使",
+      "targetMuscles": [
+        "trapezius",
+        "deltoids"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "general_fitness"
+      ],
+      "description": "俯卧姿势下的上肢活动动作，不使用手持器械。"
+    },
+    {
+      "id": "lateral_raise",
+      "name": "哑铃侧平举",
+      "targetMuscles": [
+        "deltoids"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "使用哑铃完成手臂向身体两侧抬起的肩部动作。"
+    },
+    {
+      "id": "band_pull_apart",
+      "name": "弹力带拉伸展",
+      "targetMuscles": [
+        "deltoids",
+        "trapezius"
+      ],
+      "difficulty": "beginner",
+      "equipment": "resistance_band",
+      "goals": [
+        "endurance",
+        "general_fitness"
+      ],
+      "description": "双手持弹力带向两侧展开的上肢动作，涉及肩背部位。"
+    },
+    {
+      "id": "dumbbell_curl",
+      "name": "哑铃弯举",
+      "targetMuscles": [
+        "biceps"
+      ],
+      "difficulty": "beginner",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "使用哑铃完成肘部屈伸的手臂动作，以弯举作为主要动作形式。"
+    },
+    {
+      "id": "dead_bug",
+      "name": "死虫式",
+      "targetMuscles": [
+        "abs"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "general_fitness"
+      ],
+      "description": "仰卧姿势下配合四肢移动的躯干控制动作，不使用专用器械。"
+    },
+    {
+      "id": "forearm_plank",
+      "name": "前臂平板支撑",
+      "targetMuscles": [
+        "abs"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "endurance",
+        "general_fitness"
+      ],
+      "description": "以前臂和脚部作为支撑的自重静态动作。"
+    },
+    {
+      "id": "bodyweight_squat",
+      "name": "徒手深蹲",
+      "targetMuscles": [
+        "quads",
+        "glutes"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "endurance",
+        "general_fitness"
+      ],
+      "description": "不使用额外负重的下肢蹲起动作，以站立和下蹲作为主要动作阶段。"
+    },
+    {
+      "id": "reverse_lunge",
+      "name": "后撤弓步蹲",
+      "targetMuscles": [
+        "quads",
+        "glutes"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "通过向后迈步形成弓步姿势的下肢动作，两侧交替参与。"
+    },
+    {
+      "id": "goblet_squat",
+      "name": "哑铃高脚杯深蹲",
+      "targetMuscles": [
+        "quads",
+        "glutes"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength"
+      ],
+      "description": "将哑铃持于身体前方的负重深蹲变式。"
+    },
+    {
+      "id": "calf_raise",
+      "name": "站姿提踵",
+      "targetMuscles": [
+        "calves"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "endurance",
+        "general_fitness"
+      ],
+      "description": "站立姿势下抬起与放下脚跟的下肢动作，涉及小腿部位。"
+    },
+    {
+      "id": "sit_to_stand",
+      "name": "坐站练习",
+      "targetMuscles": [
+        "quads",
+        "glutes"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "利用座椅完成坐姿与站姿之间的转换，不使用专用负重器械。"
+    },
+    {
+      "id": "glute_bridge",
+      "name": "臀桥",
+      "targetMuscles": [
+        "glutes",
+        "hamstrings"
+      ],
+      "difficulty": "beginner",
+      "equipment": "none",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "仰卧屈膝、双脚支撑地面，通过髋部伸展抬起骨盆的动作。"
+    },
+    {
+      "id": "dumbbell_romanian_deadlift",
+      "name": "哑铃罗马尼亚硬拉",
+      "targetMuscles": [
+        "hamstrings",
+        "glutes"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "手持哑铃、以髋部折叠与伸展为主的负重动作，涉及大腿后侧与臀部。"
+    },
+    {
+      "id": "dumbbell_shrug",
+      "name": "哑铃耸肩",
+      "targetMuscles": [
+        "trapezius"
+      ],
+      "difficulty": "beginner",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "双手持哑铃，通过肩胛骨上提与回落完成的动作，主要涉及斜方肌上束。"
+    },
+    {
+      "id": "dumbbell_triceps_extension",
+      "name": "哑铃臂屈伸",
+      "targetMuscles": [
+        "triceps"
+      ],
+      "difficulty": "intermediate",
+      "equipment": "dumbbell",
+      "goals": [
+        "strength",
+        "general_fitness"
+      ],
+      "description": "使用哑铃完成肘关节屈伸，以伸肘为主要发力动作。"
+    }
+  ],
+  "demonstrations": [
+    {
+      "id": "squat-depth-example",
+      "exerciseId": "bodyweight_squat",
+      "issueCode": "DEPTH_INSUFFICIENT",
+      "severities": [
+        "medium"
+      ],
+      "title": "徒手深蹲 · 幅度观察资料（样例）",
+      "description": "预留同一动作、同一问题的资料位置。正式教学视频待个人模块完成后统一补充。",
+      "media": {
+        "kind": "playback_sample",
+        "assetKey": "playback-sample",
+        "description": "无声文字与动态图形，用于测试播放、暂停和拖动进度；不包含运动示范。"
+      }
+    },
+    {
+      "id": "squat-control-example",
+      "exerciseId": "bodyweight_squat",
+      "issueCode": "TRUNK_CONTROL",
+      "severities": [
+        "low"
+      ],
+      "title": "徒手深蹲 · 躯干观察资料（样例）",
+      "description": "已有本地资料条目，视频素材尚未补充。不会借用其他问题的视频。",
+      "media": null
+    },
+    {
+      "id": "wall-push-up-alignment-example",
+      "exerciseId": "wall_push_up",
+      "issueCode": "TRUNK_ALIGNMENT",
+      "severities": [
+        "medium"
+      ],
+      "title": "墙壁俯卧撑 · 姿态观察资料（样例）",
+      "description": "展示按动作与问题匹配资料的界面；这里没有接入真实 Agent 推荐。",
+      "media": {
+        "kind": "playback_sample",
+        "assetKey": "playback-sample",
+        "description": "无声文字与动态图形，用于测试播放、暂停和拖动进度；不包含运动示范。"
+      }
+    }
+  ]
+}

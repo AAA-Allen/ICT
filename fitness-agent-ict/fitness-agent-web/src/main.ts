@@ -1,0 +1,15 @@
+import { createApp } from 'vue'
+import App from './App.vue'
+import router from './router'
+import './assets/main.css'
+import './assets/exercises.css'
+import './assets/muscle-map.css'
+import './assets/video.css'
+import './assets/analysis.css'
+import './assets/analysis-results.css'
+import './assets/demonstrations.css'
+import './assets/practice-history.css'
+import './assets/query-source.css'
+import './assets/muscle-model.css'
+
+createApp(App).use(router).mount('#app')

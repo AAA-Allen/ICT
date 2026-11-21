@@ -1,0 +1,26 @@
+{
+  "name": "approval-writer",
+  "instructions": "演示等待批准:模型请求归档工具后,运行停在 WAITING_APPROVAL,由人工批准后再继续。",
+  "description": "Approval demo agent: waits for human approval before the side-effectful archive tool.",
+  "metadata": {"example": true},
+  "entry": "loop",
+  "nodes": [
+    {"id": "loop", "type": "agent_loop", "params": {
+      "prompt": "把这条记录归档：{task}",
+      "into": "answer",
+      "tools": [{
+        "name": "archive_record",
+        "description": "归档一条记录（有副作用,需要人工批准）",
+        "parameters": {
+          "type": "object",
+          "properties": {"record": {"type": "string", "description": "要归档的记录内容"}},
+          "required": ["record"]
+        }
+      }]
+    }},
+    {"id": "ack", "type": "template", "params": {"updates": {"summary": "归档完成：{answer}"}}}
+  ],
+  "edges": [
+    {"source": "loop", "target": "ack"}
+  ]
+}

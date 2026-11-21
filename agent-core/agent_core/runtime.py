@@ -1,0 +1,918 @@
+"""Small domain-neutral Agent workflow runtime.
+
+The runtime owns execution order and trace provenance. A step owns its domain
+logic and returns an explicit outcome. No LLM, model, or inspection vocabulary
+is required by the core.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import re
+import threading
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
+from enum import Enum
+from time import monotonic
+from types import MappingProxyType
+from typing import TYPE_CHECKING, Any, Callable, Mapping
+from uuid import uuid4
+
+if TYPE_CHECKING:
+    from .persistence import RunStore
+    from .lifecycle import LifecycleEvent, LifecycleStatus, RunLifecycle
+
+
+class RunStatus(str, Enum):
+    CANCELED = "CANCELED"
+    COMPLETED = "COMPLETED"
+    WAITING_APPROVAL = "WAITING_APPROVAL"
+    BLOCKED = "BLOCKED"
+    FAILED = "FAILED"
+
+
+class StepStatus(str, Enum):
+    COMPLETED = "COMPLETED"
+    BLOCKED = "BLOCKED"
+    FAILED = "FAILED"
+
+
+class RunConflictError(ValueError):
+    """A run cannot start or resume because of a conflicting run identity.
+
+    ``reason_code`` is a stable machine-readable cause (``RUN_ALREADY_ACTIVE``,
+    ``RUN_ID_ALREADY_USED``, ``CHECKPOINT_INCOMPATIBLE``) so callers can map
+    conflicts without parsing message text.
+    """
+
+    def __init__(self, reason_code: str, message: str) -> None:
+        super().__init__(message)
+        self.reason_code = reason_code
+
+
+@dataclass(frozen=True)
+class StepOutcome:
+    status: StepStatus
+    output: Mapping[str, Any] = field(default_factory=dict)
+    reason_code: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, StepStatus):
+            raise TypeError("status must be a StepStatus")
+        if not isinstance(self.output, Mapping):
+            raise TypeError("output must be a mapping")
+        if self.reason_code is not None and (
+            not isinstance(self.reason_code, str) or not self.reason_code.strip()
+        ):
+            raise ValueError("reason_code must be a nonempty string when provided")
+        if self.status is not StepStatus.COMPLETED and not self.reason_code:
+            raise ValueError("non-completed outcomes require a reason_code")
+
+
+@dataclass(frozen=True)
+class Step:
+    name: str
+    execute: Callable[[RunContext], StepOutcome]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.strip():
+            raise ValueError("step name must be nonempty")
+        if not callable(self.execute):
+            raise TypeError("step execute must be callable")
+
+
+@dataclass
+class RunContext:
+    run_id: str
+    _input: dict[str, Any] = field(repr=False)
+    _outputs: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
+    _output_store: dict[str, dict[str, Any]] = field(default_factory=dict, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        self._output_store = dict(self._outputs)
+        self._input = _readonly_value(self._input)
+        self._outputs = _readonly_value(self._outputs)
+
+    @property
+    def input(self) -> Mapping[str, Any]:
+        return _json_snapshot(_thaw_value(self._input))
+
+    @property
+    def outputs(self) -> Mapping[str, Mapping[str, Any]]:
+        return _json_snapshot(self._output_store)
+
+    def output_of(self, step_name: str) -> Mapping[str, Any]:
+        return _json_snapshot(self._output_store[step_name])
+
+    def _commit_output(self, step_name: str, output: Mapping[str, Any]) -> None:
+        self._output_store[step_name] = _json_snapshot(output)
+
+
+@dataclass(frozen=True)
+class TraceEvent:
+    run_id: str
+    step: str
+    status: str
+    started_at: str
+    duration_ms: float
+    reason_code: str | None = None
+    error_type: str | None = None
+    event_id: str | None = None
+    event_type: str | None = None
+    sequence: int = 0
+    node_id: str | None = None
+    execution_id: str | None = None
+    state_version: int = 0
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        _validate_run_id(self.run_id)
+        if not isinstance(self.step, str):
+            raise TypeError("step must be a string")
+        if not isinstance(self.started_at, str) or not self.started_at.strip():
+            raise ValueError("started_at must be a nonempty string")
+        if not self.step.strip() and not (
+            isinstance(self.event_type, str) and self.event_type.startswith("run.")
+        ):
+            raise ValueError("step must be nonempty for node events")
+        if not isinstance(self.duration_ms, (int, float)) or isinstance(self.duration_ms, bool) \
+                or not math.isfinite(self.duration_ms) or self.duration_ms < 0:
+            raise ValueError("duration_ms must be nonnegative and finite")
+        if not isinstance(self.state_version, int) or isinstance(self.state_version, bool) \
+                or self.state_version < 0:
+            raise ValueError("state_version must be a nonnegative integer")
+        if self.reason_code is not None and (
+            not isinstance(self.reason_code, str) or not self.reason_code.strip()
+        ):
+            raise ValueError("reason_code must be a nonempty string when provided")
+        if not isinstance(self.metadata, Mapping):
+            raise TypeError("metadata must be a mapping")
+        object.__setattr__(self, "metadata", _json_snapshot(self.metadata))
+
+
+@dataclass(frozen=True)
+class RunResult:
+    run_id: str
+    status: RunStatus
+    outputs: Mapping[str, Any]
+    trace: tuple[TraceEvent, ...]
+    stopped_at_node: str | None = None
+    reason_code: str | None = None
+    state: Mapping[str, Any] | None = None
+    simulated: bool = False
+    lifecycle_events: tuple[Any, ...] = ()
+    pending_approval: Mapping[str, Any] | None = None
+
+    @property
+    def stopped_at(self) -> str | None:
+        """Deprecated alias for :attr:`stopped_at_node` (the node name where
+        the run stopped, not a timestamp)."""
+        return self.stopped_at_node
+
+    def __post_init__(self) -> None:
+        _validate_run_id(self.run_id)
+        if not isinstance(self.status, RunStatus):
+            raise TypeError("status must be a RunStatus")
+        if not isinstance(self.outputs, Mapping):
+            raise TypeError("outputs must be a mapping")
+        if self.state is not None and not isinstance(self.state, Mapping):
+            raise TypeError("state must be a mapping when provided")
+        if not isinstance(self.simulated, bool):
+            raise TypeError("simulated must be a bool")
+        if self.status is RunStatus.WAITING_APPROVAL:
+            if not isinstance(self.pending_approval, Mapping):
+                raise ValueError("waiting run requires a pending approval request")
+        elif self.pending_approval is not None:
+            raise ValueError("non-waiting run cannot have a pending approval request")
+        object.__setattr__(self, "outputs", _json_snapshot(self.outputs))
+        object.__setattr__(self, "state", _json_snapshot(self.outputs if self.state is None else self.state))
+        object.__setattr__(self, "trace", tuple(self.trace))
+        object.__setattr__(self, "lifecycle_events", tuple(self.lifecycle_events))
+        if self.pending_approval is not None:
+            object.__setattr__(self, "pending_approval", _json_snapshot(self.pending_approval))
+
+
+class WorkflowRunner:
+    """Execute registered steps once, in order, with fail-closed stop behavior.
+
+    An optional RunStore persists every finished run (COMPLETED, BLOCKED or
+    FAILED) as one JSON record per run_id. Persistence failures surface as
+    exceptions from run(); the run result itself is already produced.
+    """
+
+    def __init__(
+        self,
+        steps: list[Step] | tuple[Step, ...],
+        *,
+        store: "RunStore | None" = None,
+    ) -> None:
+        if not steps:
+            raise ValueError("workflow needs at least one step")
+        if any(not isinstance(step, Step) for step in steps):
+            raise TypeError("workflow steps must be Step instances")
+        names = [step.name for step in steps]
+        if len(set(names)) != len(names):
+            raise ValueError("step names must be unique")
+        self.steps = tuple(steps)
+        self._store = store
+
+    def run(self, input_data: Mapping[str, Any], *, run_id: str | None = None) -> RunResult:
+        if not isinstance(input_data, Mapping):
+            raise TypeError("input_data must be a mapping")
+        identity = uuid4().hex if run_id is None else run_id
+        _validate_run_id(identity)
+        context = RunContext(run_id=identity, _input=_json_snapshot(input_data))
+        result = self._execute(context)
+        if self._store is not None:
+            self._store.save(result)
+        return result
+
+    def _execute(self, context: RunContext) -> RunResult:
+        events: list[TraceEvent] = []
+        for step in self.steps:
+            started_at = datetime.now(timezone.utc).isoformat()
+            started = monotonic()
+            try:
+                outcome = step.execute(context)
+                if not isinstance(outcome, StepOutcome):
+                    raise TypeError("step must return StepOutcome")
+                if outcome.status is StepStatus.COMPLETED:
+                    context._commit_output(step.name, outcome.output)
+                events.append(TraceEvent(
+                    context.run_id, step.name, outcome.status.value, started_at,
+                    round((monotonic() - started) * 1000, 3), outcome.reason_code,
+                ))
+                if outcome.status is StepStatus.BLOCKED:
+                    return RunResult(context.run_id, RunStatus.BLOCKED, _json_snapshot(context.outputs),
+                                     tuple(events), step.name, outcome.reason_code)
+                if outcome.status is StepStatus.FAILED:
+                    return RunResult(context.run_id, RunStatus.FAILED, _json_snapshot(context.outputs),
+                                     tuple(events), step.name, outcome.reason_code)
+            except Exception as exc:
+                events.append(TraceEvent(
+                    context.run_id, step.name, RunStatus.FAILED.value, started_at,
+                    round((monotonic() - started) * 1000, 3), "STEP_EXCEPTION",
+                    type(exc).__name__,
+                ))
+                return RunResult(context.run_id, RunStatus.FAILED, _json_snapshot(context.outputs),
+                                 tuple(events), step.name, "STEP_EXCEPTION")
+        return RunResult(context.run_id, RunStatus.COMPLETED, _json_snapshot(context.outputs), tuple(events))
+
+
+def _json_snapshot(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Detach step data and reject non-finite or non-JSON workflow payloads."""
+    _validate_json_keys(value)
+    return json.loads(json.dumps(dict(value), ensure_ascii=False, allow_nan=False))
+
+
+def _readonly_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return MappingProxyType({key: _readonly_value(item) for key, item in value.items()})
+    if isinstance(value, (list, tuple)):
+        return tuple(_readonly_value(item) for item in value)
+    return value
+
+
+def _thaw_value(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        return {key: _thaw_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_thaw_value(item) for item in value]
+    return value
+
+
+def _validate_json_keys(value: Any) -> None:
+    if isinstance(value, Mapping):
+        if any(not isinstance(key, str) for key in value):
+            raise TypeError("JSON object keys must be strings")
+        for item in value.values():
+            _validate_json_keys(item)
+    elif isinstance(value, (list, tuple)):
+        for item in value:
+            _validate_json_keys(item)
+
+
+_RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_-]{0,127}\Z")
+
+
+def _validate_run_id(run_id: str) -> None:
+    if not isinstance(run_id, str) or not _RUN_ID_PATTERN.fullmatch(run_id):
+        raise ValueError(
+            "run_id must be 1-128 characters using letters, digits, '-' or '_'"
+        )
+
+
+class Runtime:
+    """Synchronous v0.1 graph executor.
+
+    This is intentionally separate from WorkflowRunner so the existing linear
+    API remains compatible while Graph Runtime behavior is introduced. It
+    supports optional boundary checkpoints, explicit resume, and cooperative
+    cancellation/timeout; it does not provide retries or parallelism.
+    """
+
+    def __init__(self, *, max_steps: int = 100, checkpoint_store: Any = None,
+                 graph_id: str = "graph", timeout_seconds: float | None = None,
+                 store: "RunStore | None" = None) -> None:
+        if not isinstance(max_steps, int) or isinstance(max_steps, bool) or max_steps <= 0:
+            raise ValueError("max_steps must be a positive integer")
+        self.max_steps = max_steps
+        if timeout_seconds is not None and (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or timeout_seconds <= 0
+        ):
+            raise ValueError("timeout_seconds must be positive when provided")
+        self.timeout_seconds = timeout_seconds
+        if checkpoint_store is not None and not all(
+            callable(getattr(checkpoint_store, name, None))
+            for name in ("save", "load", "delete")
+        ):
+            raise TypeError("checkpoint_store must implement save, load and delete")
+        if not isinstance(graph_id, str) or not graph_id.strip():
+            raise ValueError("graph_id must be a nonempty string")
+        self._checkpoint_store = checkpoint_store
+        self._graph_id = graph_id
+        if store is not None and not all(
+            callable(getattr(store, name, None)) for name in ("save", "load")
+        ):
+            raise TypeError("store must implement save and load")
+        self._store = store
+        self._lifecycles: dict[str, "RunLifecycle"] = {}
+        self._lifecycle_lock = threading.RLock()
+        self._active_runs: set[str] = set()
+        self._cancel_requests: set[str] = set()
+        self._cancel_lock = threading.Lock()
+
+    @property
+    def has_durable_result_store(self) -> bool:
+        return self._store is not None and bool(getattr(self._store, "durable", False))
+
+    def stored_result(self, run_id: str) -> RunResult | None:
+        """Read a persisted run result without starting or resuming execution."""
+        _validate_run_id(run_id)
+        return None if self._store is None else self._store.load(run_id)
+
+    def run(self, graph: Any, input: Mapping[str, Any], *, run_id: str | None = None) -> RunResult:
+        """Execute a compiled graph synchronously until a terminal result."""
+        identity = uuid4().hex if run_id is None else run_id
+        self._claim_active(identity)
+        try:
+            lifecycle = self._begin_lifecycle(identity)
+        except Exception:
+            self._release_active(identity)
+            raise
+        try:
+            result = self._execute(graph, input, run_id=identity)
+        except Exception:
+            self._finish_lifecycle(lifecycle, RunStatus.FAILED, reason_code="RUNTIME_EXCEPTION")
+            try:
+                self._persist_lifecycle(lifecycle)
+            finally:
+                self._release_active(identity)
+            raise
+        self._finish_lifecycle(lifecycle, result.status, reason_code=result.reason_code)
+        try:
+            self._persist_lifecycle(lifecycle)
+            result = replace(result, lifecycle_events=lifecycle.events)
+            self._persist_result(result)
+        finally:
+            with self._cancel_lock:
+                self._cancel_requests.discard(identity)
+            self._release_active(identity)
+        return result
+
+    def resume(self, graph: Any, checkpoint: Any) -> RunResult:
+        """Continue from a compatible checkpoint at its next node."""
+        from .checkpoint import Checkpoint
+        from .graph import CompiledGraph
+
+        if not isinstance(checkpoint, Checkpoint):
+            raise TypeError("checkpoint must be a Checkpoint")
+        if not isinstance(graph, CompiledGraph):
+            raise TypeError("graph must be a compiled Graph")
+        if checkpoint.graph_id != self._graph_id:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint graph_id does not match runtime graph_id")
+        if checkpoint.next_node is None:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint has no next_node to resume")
+        if checkpoint.next_node not in graph.nodes:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint next_node does not exist in graph")
+        if self._store is not None:
+            previous = self._store.load(checkpoint.run_id)
+            if previous is not None and previous.reason_code == "APPROVAL_REJECTED":
+                raise RunConflictError("APPROVAL_REJECTED", "rejected approval cannot resume")
+        self._claim_active(checkpoint.run_id)
+        try:
+            with self._lifecycle_lock:
+                lifecycle = self._lifecycles.get(checkpoint.run_id)
+            if lifecycle is None:
+                lifecycle = self._load_persisted_lifecycle(checkpoint.run_id)
+                if lifecycle is None:
+                    lifecycle = self._begin_lifecycle(checkpoint.run_id)
+                else:
+                    with self._lifecycle_lock:
+                        self._lifecycles[checkpoint.run_id] = lifecycle
+                if lifecycle.status.value == "WAITING_APPROVAL":
+                    raise RunConflictError("APPROVAL_REQUIRED", "run is waiting for approval")
+                if lifecycle.status.value == "RUNNING":
+                    lifecycle.recover()
+                else:
+                    lifecycle.resume()
+                self._persist_lifecycle(lifecycle)
+            else:
+                if lifecycle.status.value == "WAITING_APPROVAL":
+                    raise RunConflictError("APPROVAL_REQUIRED", "run is waiting for approval")
+                if lifecycle.status.value == "RUNNING":
+                    lifecycle.recover()
+                else:
+                    lifecycle.resume()
+                self._persist_lifecycle(lifecycle)
+        except Exception:
+            self._release_active(checkpoint.run_id)
+            raise
+        try:
+            result = self._execute(
+                graph, checkpoint.state, run_id=checkpoint.run_id,
+                initial_state=checkpoint.state, current=checkpoint.next_node,
+                state_version=checkpoint.state_version,
+                step_offset=checkpoint.step_count,
+            )
+        except Exception:
+            self._finish_lifecycle(lifecycle, RunStatus.FAILED, reason_code="RUNTIME_EXCEPTION")
+            try:
+                self._persist_lifecycle(lifecycle)
+            finally:
+                self._release_active(checkpoint.run_id)
+            raise
+        self._finish_lifecycle(lifecycle, result.status, reason_code=result.reason_code)
+        try:
+            self._persist_lifecycle(lifecycle)
+            result = replace(result, lifecycle_events=lifecycle.events)
+            self._persist_result(result)
+        finally:
+            with self._cancel_lock:
+                self._cancel_requests.discard(checkpoint.run_id)
+            self._release_active(checkpoint.run_id)
+        return result
+
+    def resume_approved(self, graph: Any, checkpoint: Any, *, decisions: Any) -> RunResult:
+        """Continue a waiting run only after its durable APPROVED decision.
+
+        The decision must match the stored pending approval request. The
+        waiting node re-executes from the checkpoint and consumes the saved
+        private invocation; the side-effectful tool still runs at most once
+        because the snapshot claims STARTED before execution.
+        """
+        from .checkpoint import Checkpoint
+        from .graph import CompiledGraph
+
+        if not isinstance(checkpoint, Checkpoint):
+            raise TypeError("checkpoint must be a Checkpoint")
+        if not isinstance(graph, CompiledGraph):
+            raise TypeError("graph must be a compiled Graph")
+        if checkpoint.graph_id != self._graph_id:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint graph_id does not match runtime graph_id")
+        if checkpoint.next_node is None:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint has no next_node to resume")
+        if checkpoint.next_node not in graph.nodes:
+            raise RunConflictError("CHECKPOINT_INCOMPATIBLE", "checkpoint next_node does not exist in graph")
+        if self._store is None:
+            raise RuntimeError("approval recovery requires a RunStore")
+        previous = self._store.load(checkpoint.run_id)
+        if previous is None:
+            raise RunConflictError("UNKNOWN_RUN", "run result does not exist")
+        if previous.status is not RunStatus.WAITING_APPROVAL \
+                or not isinstance(previous.pending_approval, Mapping):
+            raise RunConflictError("RUN_NOT_WAITING_APPROVAL", "run is not waiting for approval")
+        request = previous.pending_approval
+        request_id = request.get("request_id")
+        decision = None
+        if decisions is not None and isinstance(request_id, str) and request_id:
+            decision = decisions.load_for_request(checkpoint.run_id, request_id)
+        if decision is None or decision.decision != "APPROVED":
+            raise RunConflictError("APPROVAL_REQUIRED", "run has no approved decision to recover")
+        if (decision.tool_name != request.get("tool_name")
+                or decision.argument_digest != request.get("argument_digest")):
+            raise RunConflictError("APPROVAL_REQUEST_MISMATCH",
+                                   "approval decision does not match the waiting request")
+        self._claim_active(checkpoint.run_id)
+        try:
+            with self._lifecycle_lock:
+                lifecycle = self._lifecycles.get(checkpoint.run_id)
+            if lifecycle is None:
+                lifecycle = self._load_persisted_lifecycle(checkpoint.run_id)
+                if lifecycle is None:
+                    raise RunConflictError("LIFECYCLE_MISSING", "run lifecycle does not exist")
+                with self._lifecycle_lock:
+                    self._lifecycles[checkpoint.run_id] = lifecycle
+            if lifecycle.status.value != "WAITING_APPROVAL":
+                raise RunConflictError("RUN_NOT_WAITING_APPROVAL", "run is not waiting for approval")
+            lifecycle.resume_approved()
+            self._persist_lifecycle(lifecycle)
+        except Exception:
+            self._release_active(checkpoint.run_id)
+            raise
+        try:
+            result = self._execute(
+                graph, checkpoint.state, run_id=checkpoint.run_id,
+                initial_state=checkpoint.state, current=checkpoint.next_node,
+                state_version=checkpoint.state_version,
+                step_offset=checkpoint.step_count,
+            )
+        except Exception:
+            self._finish_lifecycle(lifecycle, RunStatus.FAILED, reason_code="RUNTIME_EXCEPTION")
+            try:
+                self._persist_lifecycle(lifecycle)
+            finally:
+                self._release_active(checkpoint.run_id)
+            raise
+        self._finish_lifecycle(lifecycle, result.status, reason_code=result.reason_code)
+        try:
+            self._persist_lifecycle(lifecycle)
+            result = replace(result, lifecycle_events=lifecycle.events)
+            self._persist_result(result)
+        finally:
+            with self._cancel_lock:
+                self._cancel_requests.discard(checkpoint.run_id)
+            self._release_active(checkpoint.run_id)
+        return result
+
+    def reject_approval(self, run_id: str, request_id: str, decisions: Any) -> RunResult:
+        """Finalize a persisted wait after an idempotent rejection decision."""
+        from .lifecycle import LifecycleStatus
+
+        _validate_run_id(run_id)
+        if self._store is None:
+            raise RuntimeError("approval rejection requires a RunStore")
+        self._claim_active(run_id)
+        try:
+            result = self._store.load(run_id)
+            if result is None:
+                raise RunConflictError("UNKNOWN_RUN", "run result does not exist")
+            if result.status is RunStatus.BLOCKED and result.reason_code == "APPROVAL_REJECTED":
+                decision = decisions.load(run_id)
+                if decision is None or decision.request_id != request_id or decision.decision != "REJECTED":
+                    raise RunConflictError("APPROVAL_DECISION_CONFLICT", "rejection does not match saved decision")
+                return result
+            if result.status is not RunStatus.WAITING_APPROVAL:
+                raise RunConflictError("RUN_NOT_WAITING_APPROVAL", "run is not waiting for approval")
+            decisions.decide(result, request_id, "REJECTED")
+            with self._lifecycle_lock:
+                lifecycle = self._lifecycles.get(run_id)
+                if lifecycle is None:
+                    lifecycle = self._load_persisted_lifecycle(run_id)
+                    if lifecycle is None:
+                        raise RunConflictError("LIFECYCLE_MISSING", "run lifecycle does not exist")
+                    self._lifecycles[run_id] = lifecycle
+                if lifecycle.status is LifecycleStatus.WAITING_APPROVAL:
+                    lifecycle.transition(LifecycleStatus.BLOCKED, reason_code="APPROVAL_REJECTED")
+                elif lifecycle.status is not LifecycleStatus.BLOCKED:
+                    raise RunConflictError("RUN_NOT_WAITING_APPROVAL", "run is not waiting for approval")
+                elif lifecycle.events[-1].reason_code != "APPROVAL_REJECTED":
+                    raise RunConflictError("APPROVAL_DECISION_CONFLICT", "run has a different terminal reason")
+                self._persist_lifecycle(lifecycle)
+            timestamp = datetime.now(timezone.utc).isoformat()
+            sequence = max((event.sequence for event in result.trace), default=0)
+            trace = result.trace + (TraceEvent(
+                run_id=run_id, step=result.stopped_at_node or "", status=RunStatus.BLOCKED.value,
+                started_at=timestamp, duration_ms=0.0, reason_code="APPROVAL_REJECTED",
+                event_id=uuid4().hex, event_type="run.blocked", sequence=sequence + 1,
+                node_id=result.stopped_at_node,
+            ),)
+            rejected = replace(result, status=RunStatus.BLOCKED, reason_code="APPROVAL_REJECTED",
+                               pending_approval=None, trace=trace, lifecycle_events=lifecycle.events)
+            self._persist_result(rejected)
+            return rejected
+        finally:
+            self._release_active(run_id)
+
+    def get_status(self, run_id: str):
+        """Return the known lifecycle status, or ``None`` for an unknown run."""
+        from .lifecycle import LifecycleStatus
+
+        _validate_run_id(run_id)
+        with self._lifecycle_lock:
+            lifecycle = self._lifecycles.get(run_id)
+        if lifecycle is not None:
+            return lifecycle.status
+        if self._store is not None:
+            load_events = getattr(self._store, "load_lifecycle_events", None)
+            if callable(load_events):
+                events = load_events(run_id)
+                if events:
+                    from .lifecycle import LifecycleStatus
+                    return events[-1].to_status
+            stored = self._store.load(run_id)
+            if stored is not None:
+                from .lifecycle import LifecycleStatus
+                return LifecycleStatus(stored.status.value)
+        return None
+
+    def get_lifecycle_events(self, run_id: str) -> tuple["LifecycleEvent", ...]:
+        """Return lifecycle events for a known run in sequence order."""
+        _validate_run_id(run_id)
+        with self._lifecycle_lock:
+            lifecycle = self._lifecycles.get(run_id)
+        if lifecycle is not None:
+            return lifecycle.events
+        if self._store is not None:
+            load_events = getattr(self._store, "load_lifecycle_events", None)
+            if callable(load_events):
+                events = load_events(run_id)
+                if events:
+                    return events
+            stored = self._store.load(run_id)
+            if stored is not None:
+                return stored.lifecycle_events
+        return ()
+
+    def _persist_result(self, result: RunResult) -> None:
+        if self._store is not None:
+            self._store.save(result)
+
+    def _persist_lifecycle(self, lifecycle: Any) -> None:
+        if self._store is None:
+            return
+        save_events = getattr(self._store, "save_lifecycle_events", None)
+        if callable(save_events):
+            save_events(lifecycle.run_id, lifecycle.events)
+
+    def cancel(self, run_id: str) -> bool:
+        """Request cooperative cancellation; return whether it was accepted."""
+        _validate_run_id(run_id)
+        with self._lifecycle_lock:
+            lifecycle = self._lifecycles.get(run_id)
+        if lifecycle is None or lifecycle.status.value != "RUNNING":
+            return False
+        with self._cancel_lock:
+            self._cancel_requests.add(run_id)
+        return True
+
+    def _is_cancel_requested(self, run_id: str) -> bool:
+        with self._cancel_lock:
+            return run_id in self._cancel_requests
+
+    def _claim_active(self, run_id: str) -> None:
+        with self._cancel_lock:
+            if run_id in self._active_runs:
+                raise RunConflictError("RUN_ALREADY_ACTIVE", "run_id is already executing")
+            self._active_runs.add(run_id)
+
+    def _release_active(self, run_id: str) -> None:
+        with self._cancel_lock:
+            self._active_runs.discard(run_id)
+        from .streaming import finish_run_stream
+
+        finish_run_stream(run_id)
+
+    def _stop_reason(self, run_id: str, started_monotonic: float) -> str | None:
+        if self._is_cancel_requested(run_id):
+            return "CANCEL_REQUESTED"
+        if self.timeout_seconds is not None and monotonic() - started_monotonic >= self.timeout_seconds:
+            return "TIMEOUT"
+        return None
+
+    def _begin_lifecycle(self, run_id: str):
+        from .lifecycle import RunLifecycle, LifecycleStatus
+
+        _validate_run_id(run_id)
+        with self._lifecycle_lock:
+            if run_id in self._lifecycles:
+                raise RunConflictError("RUN_ID_ALREADY_USED", "run_id already has a lifecycle")
+        existing = self._load_persisted_lifecycle(run_id)
+        if existing is not None:
+            raise RunConflictError("RUN_ID_ALREADY_USED", "run_id already has a persisted lifecycle")
+        if self._store is not None and self._store.load(run_id) is not None:
+            raise RunConflictError("RUN_ID_ALREADY_USED", "run_id already has a persisted result")
+        lifecycle = RunLifecycle(run_id)
+        lifecycle.transition(LifecycleStatus.RUNNING)
+        with self._lifecycle_lock:
+            self._lifecycles[run_id] = lifecycle
+        try:
+            self._persist_lifecycle(lifecycle)
+        except Exception:
+            with self._lifecycle_lock:
+                self._lifecycles.pop(run_id, None)
+            raise
+        return lifecycle
+
+    def _load_persisted_lifecycle(self, run_id: str):
+        if self._store is None:
+            return None
+        load_events = getattr(self._store, "load_lifecycle_events", None)
+        if not callable(load_events):
+            return None
+        events = load_events(run_id)
+        if not events:
+            return None
+        from .lifecycle import RunLifecycle
+        return RunLifecycle.from_events(events)
+
+    @staticmethod
+    def _finish_lifecycle(lifecycle: Any, status: RunStatus, *, reason_code: str | None) -> None:
+        from .lifecycle import LifecycleStatus
+
+        target = {
+            RunStatus.CANCELED: LifecycleStatus.CANCELED,
+            RunStatus.COMPLETED: LifecycleStatus.COMPLETED,
+            RunStatus.WAITING_APPROVAL: LifecycleStatus.WAITING_APPROVAL,
+            RunStatus.BLOCKED: LifecycleStatus.BLOCKED,
+            RunStatus.FAILED: LifecycleStatus.FAILED,
+        }[status]
+        lifecycle.transition(target, reason_code=reason_code)
+
+    def _execute(
+        self, graph: Any, input: Mapping[str, Any], *, run_id: str,
+        initial_state: Mapping[str, Any] | None = None,
+        current: str | None = None, state_version: int = 0,
+        step_offset: int = 0,
+    ) -> RunResult:
+        """Execute from an entry node or a validated checkpoint boundary."""
+        from .graph import NodeContext, CompiledGraph
+        from .results import NodeResult, NodeStatus
+        from .checkpoint import Checkpoint
+
+        if not isinstance(graph, CompiledGraph):
+            raise TypeError("graph must be a compiled Graph")
+        if not isinstance(input, Mapping):
+            raise TypeError("input must be a mapping")
+        identity = run_id
+        _validate_run_id(identity)
+
+        state: dict[str, Any] = _json_snapshot(input if initial_state is None else initial_state)
+        trace: list[TraceEvent] = []
+        sequence = 0
+        simulated = False
+        started_monotonic = monotonic()
+
+        def emit(event_type: str, *, node_id: str | None = None,
+                 execution_id: str | None = None, status: str | None = None,
+                 reason_code: str | None = None, error_type: str | None = None) -> None:
+            nonlocal sequence
+            sequence += 1
+            timestamp = datetime.now(timezone.utc).isoformat()
+            trace.append(TraceEvent(
+                run_id=identity, step=node_id or "", status=status or event_type,
+                started_at=timestamp, duration_ms=0.0, reason_code=reason_code,
+                error_type=error_type,
+                event_id=uuid4().hex, event_type=event_type, sequence=sequence,
+                node_id=node_id, execution_id=execution_id,
+                state_version=state_version,
+            ))
+
+        emit("run.started")
+        current = graph.entry if current is None else current
+        remaining_steps = self.max_steps - step_offset
+        if remaining_steps <= 0:
+            emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                 reason_code="MAX_STEPS_EXCEEDED")
+            return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                             tuple(trace), current, "MAX_STEPS_EXCEEDED",
+                             _json_snapshot(state), simulated)
+        for step_number in range(remaining_steps):
+            stop_reason = self._stop_reason(identity, started_monotonic)
+            if stop_reason is not None:
+                emit("run.canceled", node_id=current, status=RunStatus.CANCELED.value,
+                     reason_code=stop_reason)
+                return RunResult(identity, RunStatus.CANCELED, _json_snapshot(state),
+                                 tuple(trace), current, stop_reason,
+                                 _json_snapshot(state), simulated)
+            node = graph.nodes[current]
+            execution_id = uuid4().hex
+            emit("node.started", node_id=current, execution_id=execution_id)
+            try:
+                context = NodeContext(
+                    run_id=identity, node_id=current, execution_id=execution_id,
+                    state_version=state_version,
+                    _input=_json_snapshot(input), _state=_json_snapshot(state),
+                    _cancel_requested=lambda: self._is_cancel_requested(identity),
+                )
+                result = node.execute(context)
+                stop_reason = self._stop_reason(identity, started_monotonic)
+                if stop_reason is not None:
+                    emit("run.canceled", node_id=current, execution_id=execution_id,
+                         status=RunStatus.CANCELED.value, reason_code=stop_reason)
+                    return RunResult(identity, RunStatus.CANCELED, _json_snapshot(state),
+                                     tuple(trace), current, stop_reason,
+                                     _json_snapshot(state), simulated)
+                if not isinstance(result, NodeResult):
+                    emit("node.failed", node_id=current, execution_id=execution_id,
+                         status=RunStatus.FAILED.value, reason_code="INVALID_NODE_RESULT")
+                    emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                         reason_code="INVALID_NODE_RESULT")
+                    return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                     tuple(trace), current, "INVALID_NODE_RESULT",
+                                     _json_snapshot(state), simulated)
+                if result.status is NodeStatus.SUCCEEDED:
+                    try:
+                        updates = _json_snapshot(result.updates)
+                    except (TypeError, ValueError, OverflowError):
+                        emit("node.failed", node_id=current, execution_id=execution_id,
+                             status=RunStatus.FAILED.value, reason_code="INVALID_STATE_UPDATE")
+                        emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                             reason_code="INVALID_STATE_UPDATE")
+                        return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                         tuple(trace), current, "INVALID_STATE_UPDATE",
+                                         _json_snapshot(state), simulated)
+                    candidate = dict(state)
+                    candidate.update(updates)
+                    state = _json_snapshot(candidate)
+                    state_version += 1
+                    simulated = simulated or result.simulated
+                    emit("state.committed", node_id=current, execution_id=execution_id)
+                    emit("node.completed", node_id=current, execution_id=execution_id,
+                         status=result.status.value)
+                elif result.status is NodeStatus.WAITING_APPROVAL:
+                    checkpoint_error = self._save_checkpoint(
+                        Checkpoint(identity, self._graph_id, current, state, state_version,
+                                   step_offset + step_number + 1)
+                    )
+                    if checkpoint_error is not None:
+                        emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                             reason_code=checkpoint_error)
+                        return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                         tuple(trace), current, checkpoint_error,
+                                         _json_snapshot(state), simulated)
+                    emit("node.waiting_approval", node_id=current, execution_id=execution_id,
+                         status=result.status.value, reason_code=result.reason_code)
+                    emit("run.waiting_approval", node_id=current,
+                         status=RunStatus.WAITING_APPROVAL.value, reason_code=result.reason_code)
+                    return RunResult(identity, RunStatus.WAITING_APPROVAL, _json_snapshot(state),
+                                     tuple(trace), current, result.reason_code,
+                                     _json_snapshot(state), simulated,
+                                     pending_approval=result.output)
+                else:
+                    emit(
+                        "node.blocked" if result.status is NodeStatus.BLOCKED else "node.failed",
+                        node_id=current, execution_id=execution_id,
+                        status=result.status.value, reason_code=result.reason_code,
+                    )
+                    final_status = RunStatus.BLOCKED if result.status is NodeStatus.BLOCKED else RunStatus.FAILED
+                    emit("run.blocked" if final_status is RunStatus.BLOCKED else "run.failed",
+                         node_id=current, status=final_status.value, reason_code=result.reason_code)
+                    return RunResult(identity, final_status, _json_snapshot(state),
+                                     tuple(trace), current, result.reason_code,
+                                     _json_snapshot(state), simulated)
+            except Exception as exc:
+                emit("node.failed", node_id=current, execution_id=execution_id,
+                     status=RunStatus.FAILED.value, reason_code="NODE_EXCEPTION",
+                     error_type=type(exc).__name__)
+                emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                     reason_code="NODE_EXCEPTION")
+                return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                 tuple(trace), current, "NODE_EXCEPTION",
+                                 _json_snapshot(state), simulated)
+
+            edges = graph.outgoing(current)
+            if not edges:
+                checkpoint_error = self._save_checkpoint(
+                    Checkpoint(identity, self._graph_id, None, state, state_version, step_offset + step_number + 1)
+                )
+                if checkpoint_error is not None:
+                    emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                         reason_code=checkpoint_error)
+                    return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                     tuple(trace), current, checkpoint_error,
+                                     _json_snapshot(state), simulated)
+                emit("run.completed", node_id=current, status=RunStatus.COMPLETED.value)
+                return RunResult(identity, RunStatus.COMPLETED, _json_snapshot(state),
+                                 tuple(trace), None, None, _json_snapshot(state), simulated)
+            route = result.route
+            matches = [edge for edge in edges if edge.when == route]
+            if len(matches) == 0:
+                code = "NO_ROUTE"
+                emit("run.failed", node_id=current, status=RunStatus.FAILED.value, reason_code=code)
+                return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                 tuple(trace), current, code, _json_snapshot(state), simulated)
+            if len(matches) > 1:
+                code = "AMBIGUOUS_ROUTE"
+                emit("run.failed", node_id=current, status=RunStatus.FAILED.value, reason_code=code)
+                return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                 tuple(trace), current, code, _json_snapshot(state), simulated)
+            next_node = matches[0].target
+            checkpoint_error = self._save_checkpoint(
+                Checkpoint(identity, self._graph_id, next_node, state, state_version, step_offset + step_number + 1)
+            )
+            if checkpoint_error is not None:
+                emit("run.failed", node_id=current, status=RunStatus.FAILED.value,
+                     reason_code=checkpoint_error)
+                return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                                 tuple(trace), current, checkpoint_error,
+                                 _json_snapshot(state), simulated)
+            emit("route.selected", node_id=current, status=RunStatus.COMPLETED.value)
+            current = next_node
+
+        code = "MAX_STEPS_EXCEEDED"
+        emit("run.failed", node_id=current, status=RunStatus.FAILED.value, reason_code=code)
+        return RunResult(identity, RunStatus.FAILED, _json_snapshot(state),
+                         tuple(trace), current, code, _json_snapshot(state), simulated)
+
+    def _save_checkpoint(self, checkpoint: Any) -> str | None:
+        if self._checkpoint_store is None:
+            return None
+        try:
+            self._checkpoint_store.save(checkpoint)
+        except Exception:
+            return "CHECKPOINT_SAVE_FAILED"
+        return None

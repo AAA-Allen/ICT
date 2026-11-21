@@ -1,0 +1,15 @@
+/_delivery/
+/_migration-backup/
+/_staging/
+/_trash-*/
+/.workbuddy/
+/artifacts/
+/promo/
+/Squat-Complete-Review-C-221/
+/squat-algorithm-handoff-*/local-runs/
+.venv/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example

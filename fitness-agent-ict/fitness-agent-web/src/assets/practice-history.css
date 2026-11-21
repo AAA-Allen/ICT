@@ -1,0 +1,426 @@
+.training-history {
+  margin-top: 28px;
+  padding: 28px;
+  border: 1px solid #dce4d3;
+  border-radius: 15px;
+  background: #fff;
+}
+.history-source-note,
+.history-storage-note,
+.history-no-video,
+.comparison-source-note,
+.comparison-time-note,
+.history-linked-note,
+.history-busy-note {
+  color: #77866c;
+  font-size: 12px;
+  line-height: 1.95;
+}
+.history-source-note {
+  margin-top: 15px;
+}
+.history-storage-note {
+  margin-top: 24px;
+  font-size: 11px;
+}
+.history-empty,
+.history-storage-warning,
+.history-clear-confirm,
+.comparison-block-reason {
+  padding: 18px;
+  border: 1px dashed #cbd8bf;
+  border-radius: 8px;
+  color: #748466;
+  background: #f3f7ed;
+  font-size: 12px;
+  line-height: 1.9;
+  margin-top: 18px;
+}
+.history-storage-warning {
+  color: #8a7142;
+  background: #faf5e8;
+  border-color: #deceaa;
+}
+.history-message {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #5a7944;
+  line-height: 1.9;
+}
+.history-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin: 23px 0;
+}
+.history-toolbar label,
+.history-comparison-controls label {
+  color: #5a724a;
+  font-size: 12px;
+}
+.history-toolbar select,
+.history-comparison-controls select {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  padding: 10px 30px 10px 12px;
+  border: 1px solid #cfdcc1;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  color: #55713f;
+  background: #fcfdf9;
+}
+.history-clear-button {
+  margin-left: auto;
+}
+.history-toolbar button,
+.history-detail-actions button,
+.history-storage-warning button,
+.history-clear-confirm button,
+.comparison-swap-button,
+.review-history-button {
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid #ccdabd;
+  border-radius: 6px;
+  background: #f4f7ee;
+  color: #577344;
+  font-size: 12px;
+  line-height: 1.8;
+}
+.history-clear-confirm button {
+  margin: 12px 10px 0 0;
+}
+.history-storage-warning button {
+  margin-top: 12px;
+}
+.history-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: 22px;
+  align-items: start;
+}
+.history-record-list {
+  display: grid;
+  gap: 11px;
+  max-height: 540px;
+  padding: 4px;
+  overflow-y: auto;
+}
+.history-record-select {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  padding: 18px;
+  min-height: 44px;
+  border: 1px solid #d9e3cf;
+  border-radius: 8px;
+  background: #fafcf7;
+  color: #6f8260;
+  text-align: left;
+  font-size: 11px;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.history-record-select[aria-pressed='true'] {
+  border-color: #6e8d55;
+  background: #edf4e3;
+  box-shadow: inset 0 0 0 1px #6e8d55;
+}
+.history-record-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+}
+.history-record-heading strong {
+  color: #476436;
+  font-size: 14px;
+}
+.history-record-heading > span {
+  font-size: 10px;
+  color: #849173;
+}
+.history-detail {
+  min-width: 0;
+  padding: 23px;
+  border: 1px solid #dce5d2;
+  border-radius: 9px;
+  background: #fcfdf9;
+  overflow-wrap: anywhere;
+}
+.history-detail h3,
+.history-comparison-section h3 {
+  color: #426030;
+  font-size: 17px;
+  line-height: 1.9;
+  font-weight: 600;
+}
+.history-detail-label {
+  margin-bottom: 9px;
+  color: #819174;
+  font-size: 10px;
+  line-height: 1.9;
+}
+.history-detail-file {
+  color: #74866a;
+  font-size: 12px;
+  line-height: 1.9;
+  margin: 10px 0;
+}
+.history-config-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 14px;
+}
+.history-config-labels span {
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: #ebf0e3;
+  color: #7b8b6b;
+  font-size: 10px;
+}
+.history-record-id {
+  color: #8b977f;
+  font-size: 10px;
+  margin: 14px 0;
+  line-height: 1.8;
+}
+.history-linked-note {
+  font-size: 11px;
+}
+.history-saved-issues {
+  list-style: none;
+  padding: 0;
+  margin: 15px 0;
+  display: grid;
+  gap: 10px;
+}
+.history-saved-issues li {
+  display: grid;
+  gap: 6px;
+  padding: 13px;
+  border: 1px solid #e1e8d8;
+  border-radius: 6px;
+  color: #718363;
+  font-size: 11px;
+  line-height: 1.8;
+}
+.history-saved-issues strong {
+  font-weight: 500;
+  font-size: 12px;
+  color: #536e42;
+}
+.history-empty-result {
+  margin: 16px 0;
+  color: #7b8c6d;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.history-no-video {
+  font-size: 11px;
+  margin-top: 13px;
+}
+.history-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+.history-detail-actions .practice-again-button {
+  background: #52733f;
+  color: #fff;
+  border-color: #52733f;
+}
+.history-detail-actions .practice-again-button:disabled {
+  color: #939c89;
+  background: #edf0e7;
+  border-color: #d8e1ce;
+}
+.history-busy-note {
+  margin-top: 10px;
+  font-size: 11px;
+}
+.history-comparison-section {
+  padding-top: 25px;
+  margin-top: 27px;
+  border-top: 1px solid #e0e7d6;
+}
+.history-comparison-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 14px;
+  margin: 18px 0;
+}
+.history-comparison-controls > div {
+  min-width: 0;
+}
+.history-comparison-controls label {
+  display: block;
+  margin-bottom: 9px;
+}
+.history-comparison-controls select {
+  width: 100%;
+}
+.comparison-swap-button {
+  min-width: 44px;
+}
+.comparison-source-note {
+  padding: 13px 15px;
+  border-radius: 7px;
+  background: #edf3e5;
+  color: #6f825f;
+}
+.comparison-overview {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 18px;
+}
+.comparison-overview > div {
+  padding: 18px;
+  border: 1px solid #dce5d2;
+  border-radius: 8px;
+  background: #fcfdf9;
+}
+.comparison-overview span {
+  display: block;
+  font-size: 11px;
+  color: #819074;
+  margin-bottom: 10px;
+}
+.comparison-overview strong {
+  color: #4b6a39;
+  font-size: 19px;
+  font-weight: 600;
+}
+.comparison-overview p {
+  margin-top: 9px;
+  color: #7e8e71;
+  font-size: 11px;
+  line-height: 1.9;
+}
+.comparison-time-note {
+  margin: 14px 0;
+  font-size: 11px;
+}
+.comparison-issue-list {
+  display: grid;
+  gap: 13px;
+}
+.comparison-issue-row {
+  padding: 18px;
+  border: 1px solid #dce4d2;
+  border-radius: 8px;
+  background: #fcfdf9;
+  overflow-wrap: anywhere;
+}
+.comparison-issue-row h4 {
+  margin: 0 0 7px;
+  color: #506d3e;
+  font-size: 14px;
+  line-height: 1.8;
+  font-weight: 500;
+}
+.comparison-code {
+  font-size: 10px;
+  color: #8a977f;
+}
+.comparison-issue-row dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin: 15px 0;
+}
+.comparison-issue-row dt {
+  margin-bottom: 8px;
+  font-size: 10px;
+  color: #8a967e;
+}
+.comparison-issue-row dd {
+  margin: 0;
+  color: #667e54;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.comparison-row-status {
+  font-size: 11px;
+  color: #73885f;
+  line-height: 1.9;
+}
+.comparison-issue-row[data-status='uncertain'] {
+  border-color: #e0d5b7;
+  background: #fbf8ef;
+}
+.comparison-issue-row[data-status='uncertain'] .comparison-row-status {
+  color: #8a7546;
+}
+.practice-again-notice {
+  padding: 15px;
+  margin-top: 18px;
+  color: #5f7a4b;
+  background: #edf4e4;
+  border: 1px solid #d1dfc1;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.9;
+}
+.review-history-button {
+  margin-top: 14px;
+}
+.journey-history-button {
+  min-height: 44px;
+  padding: 5px 0;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  background: none;
+}
+.journey-history-button:disabled {
+  color: #899180;
+}
+
+@media (max-width: 900px) {
+  .history-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .history-record-list {
+    max-height: 350px;
+  }
+}
+@media (max-width: 600px) {
+  .training-history {
+    padding: 20px;
+  }
+  .training-history > .section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .history-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .history-clear-button {
+    margin: 0;
+    justify-self: start;
+  }
+  .history-detail {
+    padding: 16px;
+  }
+  .history-comparison-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .comparison-swap-button {
+    justify-self: start;
+  }
+  .comparison-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .comparison-issue-row dl {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
