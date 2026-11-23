@@ -7,28 +7,45 @@ const props = defineProps<{ task: SquatTask }>()
 const emit = defineEmits<{ speak: [text: string] }>()
 const cards = computed(() => buildSquatFeedback(props.task))
 const motionCount = computed(() => cards.value.filter((c) => c.id.startsWith('motion-')).length)
-const unresolvedCount = computed(
-  () =>
-    (props.task.algorithm?.guidance?.observations ?? []).filter(
-      (o) => o.status === 'unknown' && o.reason_code !== 'no_candidate',
-    ).length,
+const visibleObservations = computed(() =>
+  (props.task.algorithm?.guidance?.observations ?? []).filter(
+    (o) =>
+      ['candidate', 'review_required'].includes(o.status) &&
+      (o.events?.length ?? 0) + (o.review_events?.length ?? 0) > 0,
+  ),
 )
-const ruleCount = computed(
-  () =>
-    (props.task.algorithm?.guidance?.observations ?? []).filter(
-      (o) =>
-        ['candidate', 'review_required'].includes(o.status) &&
-        (o.events?.length ?? 0) + (o.review_events?.length ?? 0) > 0,
-    ).length,
+const ruleCount = computed(() => visibleObservations.value.length)
+const visibleMetrics = computed(() =>
+  Object.entries(props.task.algorithm?.results?.biomechanics?.metrics ?? {}).filter(
+    ([, m]) =>
+      m.status === 'estimated' && typeof m.median === 'number' && Number.isFinite(m.median),
+  ),
 )
-const statusName = (status: string, code?: string) =>
-  status === 'candidate'
-    ? '待复核候选'
-    : status === 'review_required'
-      ? '需查看视频确认'
-      : code === 'no_candidate'
-        ? '未触发候选'
-        : '无法判断'
+const cycleCount = computed(() => props.task.algorithm?.results?.features?.cycle_count)
+const frameFraction = computed(() => props.task.algorithm?.results?.quality?.valid_knee_fraction)
+const hasCycleCount = computed(
+  () =>
+    typeof cycleCount.value === 'number' &&
+    Number.isFinite(cycleCount.value) &&
+    cycleCount.value >= 0,
+)
+const hasFrameFraction = computed(
+  () =>
+    typeof frameFraction.value === 'number' &&
+    Number.isFinite(frameFraction.value) &&
+    frameFraction.value >= 0 &&
+    frameFraction.value <= 1,
+)
+const hasAgent = computed(() => props.task.agent_status === 'COMPLETED' && !!props.task.agent)
+const hasDetails = computed(
+  () =>
+    ruleCount.value > 0 ||
+    visibleMetrics.value.length > 0 ||
+    hasCycleCount.value ||
+    hasFrameFraction.value ||
+    hasAgent.value,
+)
+const statusName = (status: string) => (status === 'candidate' ? '待复核候选' : '需查看视频确认')
 </script>
 
 <template>
@@ -75,56 +92,47 @@ const statusName = (status: string, code?: string) =>
         }}</a></template
       >
     </p>
-    <p v-if="unresolvedCount && motionCount" class="feedback-intro">
-      另有
-      {{
-        unresolvedCount
-      }}
-      项表现尚未判断，原因可在下方展开查看；以上运动学观察不代表这些项目已通过检查。
-    </p>
-    <details :key="task.task_id" class="algorithm-details">
+    <details v-if="hasDetails" :key="task.task_id" class="algorithm-details">
       <summary>
         <span>算法分析结果</span><span class="expand-hint">点击下拉展开</span
         ><span class="collapse-hint">点击收起</span>
       </summary>
       <div class="algorithm-content">
-        <h5>动作与画面质量</h5>
-        <p>
-          动作次数：{{ task.algorithm?.results?.features?.cycle_count ?? '未知' }} · 有效帧比例：{{
-            task.algorithm?.results?.quality?.valid_knee_fraction == null
-              ? '未知'
-              : Math.round(task.algorithm.results.quality.valid_knee_fraction * 100) + '%'
-          }}
-        </p>
-        <p>以下为模型估计和候选证据；未触发或无法判断均不能作为动作全部正确的证明。</p>
-        <h5>逐项观察</h5>
-        <ul>
-          <li v-for="item in task.algorithm?.guidance?.observations" :key="item.type">
-            <strong>{{ observationNames[item.type] ?? item.type }}</strong
-            >：{{ statusName(item.status, item.reason_code) }}
-            <p>{{ item.reason }}</p>
-            <p
-              v-for="(event, index) in [...(item.events ?? []), ...(item.review_events ?? [])]"
-              :key="index"
-            >
-              {{ event.start_sec }}–{{ event.end_sec }} 秒<span v-if="event.phase">
-                · 阶段：{{ event.phase }}</span
+        <template v-if="hasCycleCount || hasFrameFraction">
+          <h5>动作与画面质量</h5>
+          <p v-if="hasCycleCount">动作次数：{{ cycleCount }}</p>
+          <p v-if="hasFrameFraction">有效帧比例：{{ Math.round(frameFraction! * 100) }}%</p>
+        </template>
+        <p>仅展示有结果的项目；未展示不代表动作正常或已通过检查。</p>
+        <template v-if="visibleObservations.length">
+          <h5>逐项观察</h5>
+          <ul>
+            <li v-for="item in visibleObservations" :key="item.type">
+              <strong>{{ observationNames[item.type] ?? item.type }}</strong
+              >：{{ statusName(item.status) }}
+              <p>{{ item.reason }}</p>
+              <p
+                v-for="(event, index) in [...(item.events ?? []), ...(item.review_events ?? [])]"
+                :key="index"
               >
-            </p>
-          </li>
-        </ul>
-        <h5>生物力学指标（模型估计，全视频中位数）</h5>
-        <ul>
-          <li v-for="(metric, key) in task.algorithm?.results?.biomechanics?.metrics" :key="key">
-            {{ metric.description }}：{{
-              metric.status === 'estimated' && metric.median != null
-                ? metric.median.toFixed(2) + (metric.unit === 'deg' ? '°' : '（相对腿长）')
-                : '未知（当前视角或参考帧不足）'
-            }}
-          </li>
-        </ul>
-        <p v-if="!task.algorithm?.results?.biomechanics?.metrics">本次未返回生物力学指标。</p>
-        <section v-if="task.agent_status === 'COMPLETED' && task.agent">
+                {{ event.start_sec }}–{{ event.end_sec }} 秒<span v-if="event.phase">
+                  · 阶段：{{ event.phase }}</span
+                >
+              </p>
+            </li>
+          </ul>
+        </template>
+        <template v-if="visibleMetrics.length">
+          <h5>生物力学指标（模型估计，全视频中位数）</h5>
+          <ul>
+            <li v-for="[key, metric] in visibleMetrics" :key="key">
+              {{ metric.description }}：{{
+                metric.median!.toFixed(2) + (metric.unit === 'deg' ? '°' : '（相对腿长）')
+              }}
+            </li>
+          </ul>
+        </template>
+        <section v-if="hasAgent && task.agent">
           <h5>Agent 补充反馈</h5>
           <p>{{ task.agent.summary }}</p>
           <ul>
