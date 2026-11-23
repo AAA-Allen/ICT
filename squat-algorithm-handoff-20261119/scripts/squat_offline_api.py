@@ -70,6 +70,8 @@ def main():
     result['guidance']=build_guidance(obj,a.camera_view,a.action,answers,knee_mode=a.knee_mode,
                                      heel_review=a.heel_review,all_labels=a.all_labels)
     result['biomechanics']=analyze_biomechanics(obj,a.camera_view,result['guidance']['cycles'])
+    from squat_dual_analysis import analyze_dual
+    result['biomechanics']['dual_analysis']=analyze_dual(result['biomechanics'],result['guidance'])
     prior=json.loads(a.previous_result.read_text(encoding='utf8')).get('guidance') if a.previous_result else None
     result['guidance']['followup_comparison']=compare_followup(result['guidance'],prior)
     data=json.dumps(result,ensure_ascii=False,indent=2,allow_nan=False)+'\n'

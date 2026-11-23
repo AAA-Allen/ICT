@@ -394,6 +394,8 @@ def build_guidance(obj, view='unknown', action=None, answers=None, *, knee_mode=
         descriptions.append({'cycle_index':i,'start_sec':c['start_sec'],'bottom_sec':c['bottom_sec'],
             'end_sec':c['end_sec'],'duration_sec':c.get('duration_sec',round(c['end_sec']-c['start_sec'],3)),
             'estimated_peak_knee_flexion_deg':c.get('bottom_flexion_deg'),
+            'bottom_window_sec':c.get('bottom_window_sec'),
+            'bottom_hold_candidate_sec':c.get('bottom_hold_candidate_sec',0),
             'boundary_status':c.get('boundary_status'),'interpretation':'模型估计的时间与膝屈曲角，不作为安全或正确性判断。'})
     return {'version':'squat-guidance-v2','selected_action':action,'declared_view':view,
             'view_verification':'user_declared_not_verified','cycles':descriptions,'observations':issues,

@@ -41,6 +41,23 @@ export interface SquatTask {
       features?: { cycle_count?: number; peak_flexion_deg?: number }
       quality?: { valid_knee_fraction?: number }
       biomechanics?: {
+        dual_analysis?: {
+          kinematics: {
+            findings: {
+              id: string
+              problem: string
+              label: string
+              reason: string
+              advice: string
+            }[]
+          }
+        }
+        cycles?: {
+          cycle_index: number
+          boundary_status?: string
+          descent_to_bottom_sec?: number
+          active_ascent_sec?: number
+        }[]
         metrics?: Record<
           string,
           {
@@ -49,6 +66,9 @@ export interface SquatTask {
             median: number | null
             unit: string
             reason_code?: string
+            p05?: number | null
+            p95?: number | null
+            coverage?: number
           }
         >
       }
@@ -58,7 +78,9 @@ export interface SquatTask {
         type: string
         status: string
         reason?: string
-        events?: { start_sec: number; end_sec: number; side?: string }[]
+        reason_code?: string
+        events?: SquatEvent[]
+        review_events?: SquatEvent[]
       }[]
     }
   } | null
@@ -67,6 +89,14 @@ export interface SquatTask {
   reason_code?: string | null
   agent_status?: string
   cancel_requested?: boolean
+}
+export interface SquatEvent {
+  start_sec: number
+  end_sec: number
+  side?: string
+  phase?: string
+  cycle_index?: number | null
+  evidence?: Record<string, unknown>
 }
 export const terminal = (t: SquatTask) => ['FAILED', 'CANCELED', 'COMPLETED'].includes(t.status)
 
