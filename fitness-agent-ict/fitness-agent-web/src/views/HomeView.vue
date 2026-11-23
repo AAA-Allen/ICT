@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ExerciseBrowser from '../components/ExerciseBrowser.vue'
+import ExerciseCues from '../components/ExerciseCues.vue'
 import MuscleDetails from '../components/MuscleDetails.vue'
 import MuscleExplorer from '../components/MuscleExplorer.vue'
 import MuscleSelector from '../components/MuscleSelector.vue'
@@ -331,8 +332,10 @@ function confirmTraining() {
         :configuration="trainingConfiguration"
         :confirmed="isTrainingConfirmed"
       />
+      <ExerciseCues v-if="page === 'exercises' && selectedExercise" :exercise="selectedExercise" />
     </div>
     <div v-show="page === 'video' || page === 'analysis'">
+      <ExerciseCues v-if="page === 'video' && selectedExercise" :exercise="selectedExercise" />
       <VideoUploader
         :screen="page === 'analysis' ? 'analysis' : 'video'"
         :exercise="selectedExercise"

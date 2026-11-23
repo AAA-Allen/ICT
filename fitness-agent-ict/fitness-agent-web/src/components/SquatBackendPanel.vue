@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { createCoachSpeech } from '../services/speech'
+import SquatFeedbackResults from './SquatFeedbackResults.vue'
 import {
   createSquat,
   listSquats,
@@ -31,20 +32,6 @@ function stopReminder() {
 }
 const action = ref<SquatTask['exercise_id']>('normal_squat')
 const cameraView = ref('unknown')
-const observationNames: Record<string, string> = {
-  knee_inward: '膝内移',
-  heel_raise: '脚跟抬起',
-  forefoot_raise: '前脚掌抬起',
-  medial_foot_raise: '足内侧抬起',
-  lateral_foot_raise: '足外侧抬起',
-  back_rounding: '弓背',
-  lumbar_overextension: '腰椎过伸',
-  torso_coordination: '躯干协调',
-  lateral_shift: '侧向偏移',
-  balance: '平衡',
-  plie: '脚尖外开',
-  hold: '底部停留',
-}
 const message = ref('选择可预览的徒手深蹲视频后，可以上传到本机业务服务。')
 const videoId = ref('')
 const task = ref<SquatTask | null>(null)
@@ -82,7 +69,8 @@ function accept(next: SquatTask, signal: AbortSignal) {
   message.value = taskLabels[next.status]
   if (next.reason_code) message.value += ' · ' + (reasonText[next.reason_code] ?? next.reason_code)
   if (next.status === 'COMPLETED')
-    message.value += next.agent_status === 'COMPLETED' ? ' · 算法与 Agent 已完成' : ' · 仅算法结果'
+    message.value +=
+      next.agent_status === 'COMPLETED' ? ' · 算法与 Agent 已完成' : ' · 训练反馈已整理'
   if (terminal(next)) {
     busy.value = false
     return
@@ -150,6 +138,20 @@ async function loadHistory() {
     if (!signal.aborted) historyNote.value = e instanceof Error ? e.message : '查询失败'
   }
 }
+async function showHistoryResult(row: SquatTask) {
+  if (busy.value) return
+  lookup?.abort()
+  const signal = (lookup = new AbortController()).signal
+  try {
+    const result = await readSquat(row, signal)
+    if (!signal.aborted) {
+      task.value = result
+      message.value = '已打开历史练习反馈'
+    }
+  } catch (e) {
+    if (!signal.aborted) historyNote.value = e instanceof Error ? e.message : '读取结果失败'
+  }
+}
 onBeforeUnmount(() => {
   coachSpeech.stop()
   stop()
@@ -212,54 +214,14 @@ onBeforeUnmount(() => {
       </div>
     </dl>
     <button class="reset-button" @click="loadHistory">查询本会话最近任务</button>
-    <section v-if="task?.algorithm" aria-label="真实算法结果">
-      <h4>真实算法结果</h4>
-      <p>
-        动作次数：{{ task.algorithm.results?.features?.cycle_count ?? '未知' }} · 有效帧比例：{{
-          task.algorithm.results?.quality?.valid_knee_fraction == null
-            ? '未知'
-            : Math.round(task.algorithm.results.quality.valid_knee_fraction * 100) + '%'
-        }}
-      </p>
-      <p>候选片段需要人工复核；未知表示证据不足，不能解释为动作正常。</p>
-      <ul>
-        <li v-for="observation in task.algorithm.guidance?.observations" :key="observation.type">
-          <strong>{{ observationNames[observation.type] ?? observation.type }}</strong
-          >：{{ observation.status === 'candidate' ? '待复核候选' : '未知' }}
-          <span v-for="(event, index) in observation.events" :key="index">
-            · {{ event.start_sec }}–{{ event.end_sec }} 秒</span
-          >
-          <p>{{ observation.reason }}</p>
-        </li>
-      </ul>
-      <h4>生物力学指标（模型估计，中位数）</h4>
-      <ul>
-        <li v-for="(metric, key) in task.algorithm.results?.biomechanics?.metrics" :key="key">
-          {{ metric.description }}：{{
-            metric.status === 'estimated' && metric.median != null
-              ? metric.median + ' ' + metric.unit
-              : '未知（当前视角或参考帧不足）'
-          }}
-        </li>
-      </ul>
-      <section v-if="task.agent_status === 'COMPLETED' && task.agent">
-        <h4>Agent 反馈</h4>
-        <p>{{ task.agent.summary }}</p>
-        <ul>
-          <li v-for="(suggestion, index) in task.agent.suggestions" :key="index">
-            {{ suggestion.text }}
-            <button v-if="suggestion.text.length <= 120" @click="playReminder(suggestion.text)">
-              播报建议
-            </button>
-          </li>
-        </ul>
-      </section>
-      <p v-else>当前仅展示算法证据，尚无模型生成的 Agent 反馈。</p>
-    </section>
+    <SquatFeedbackResults v-if="task?.algorithm" :task="task" @speak="playReminder" />
     <p role="status">{{ historyNote }}</p>
     <ul v-if="history?.length">
       <li v-for="row in history" :key="row.task_id">
         {{ row.task_id }} · {{ taskLabels[row.status] }} {{ row.reason_code }}
+        <button v-if="row.status === 'COMPLETED'" :disabled="busy" @click="showHistoryResult(row)">
+          查看练习反馈
+        </button>
       </li>
     </ul>
   </section>

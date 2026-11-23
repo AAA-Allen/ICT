@@ -1,14 +1,16 @@
 {
-  "README.md": "8601ca3da1bb1536134a68cc0b68e9579b5b788155ccef568f09e8ff6355d506",
-  "requirements-squat-skeleton.txt": "1dd0689bd1a79a6e3c3035ef555dc34e5b692824ba91d90b2cfb46b491d0bba0",
+  ".gitattributes": "bdf64992765a0b0b55793c1372de115b795c492516e8e3e57e69cb7676661dfe",
+  "README.md": "088e3d4cdbe2408f847da900c8f518fe3bdb248941df2818be0fc66dd8b3b98f",
   "docs/深蹲生物力学模块-20261119.md": "cd08f68290db6859539a645c0d717b2f52ce97e058058e6169a0e4866e7c5f4c",
   "docs/深蹲视频指导实验接口.md": "d7f1c7f8478f43c4049fecbc7d824bfa38beb34a4dc05c6b55b781231fac81d7",
   "docs/膝内移算法终版.md": "97f15e3278d72f1142a3c136949064e6f83dd2820f7fc3bf482a63a2008f5fa6",
   "models/pose_landmarker_lite.task": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a",
+  "requirements-squat-skeleton.txt": "1dd0689bd1a79a6e3c3035ef555dc34e5b692824ba91d90b2cfb46b491d0bba0",
   "scripts/autolabel_squat_v2.py": "59129095cc67e833d4250e3651d154d2fbdd922cc14df993c29a4c500896202e",
   "scripts/squat_angle_v3.py": "8a454ee3f6f5f74601e2180dd7ac750ab4bdf5fadf37fd73932f0eb31ad6f3c9",
   "scripts/squat_biomechanics.py": "d99290b6bf0ee37b1d899a0f4715271be757cd5a58bb2a8c6ff6dfc87cd8b9fb",
-  "scripts/squat_guidance.py": "cadcb4653a54ff98d34ed503a2f0725fe616f2a51427f625a71857c50b8b9efe",
+  "scripts/squat_dual_analysis.py": "4df28f464ea54741fb85b290688d846cb43576ed1935ace1788b51389447425a",
+  "scripts/squat_guidance.py": "94c507452410df7ea48d87b08121052f73ade4efc1a8f53bcb548f031c4cc689",
   "scripts/squat_guidance_followup.py": "f2d47a1ca33275e4eefff00b918d27d5ea46882202d0ea1b6a29030d7797ae0f",
   "scripts/squat_heel_raise.py": "ce5d04a98c9f376aafafe534a93fce4c931b7444b0833fe83e2465190338a0dd",
   "scripts/squat_knee_final.py": "aaca64d194124e02042ecd56b82aff9ee6e5c55cb59359b59169273842cc40bd",
@@ -16,6 +18,7 @@
   "scripts/squat_knee_recovery.py": "79222fc545fed24129c0f6763b56bec2bb458a8ba7ebe846b6f1e0389eef9d6e",
   "scripts/squat_label_screening.py": "6ae73fc82e16694513dc1d21fb984ae08cb4b9f7044ed222f28efb57c9d14b9f",
   "scripts/squat_motion_experiments.py": "f9e532baf7efef77eb8b584f87a757cd867eb78893b6ce7f14d2fb091ad146be",
-  "scripts/squat_offline_api.py": "59573da4975821f0a19760d50eb74acfd8a9d1550bd226b5c704d1082e8306b2",
-  "scripts/squat_skeleton_pipeline.py": "3267c5e0fdfeba0f02dca8541e531b08dde5233fc37c09873540673559a90276"
+  "scripts/squat_offline_api.py": "cff09b23b156f22117a4619d3845d8b09d6af1d4da815e8861a3ea07db22cc10",
+  "scripts/squat_skeleton_pipeline.py": "3267c5e0fdfeba0f02dca8541e531b08dde5233fc37c09873540673559a90276",
+  "tests/test_dual_analysis.py": "3812c44856a7863a387a6fd30a2c2643a60ae38c209d2d9782a37530ef0804ba"
 }
